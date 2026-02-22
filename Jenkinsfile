@@ -2,23 +2,17 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "syed5zan/amazon-nginx"
-        DOCKER_TAG   = "latest"
+        IMAGE_NAME = "syed5zan/amazon-nginx"
+        IMAGE_TAG  = "latest"
     }
 
     stages {
 
-        stage('Checkout Code') {
-            steps {
-                git 'https://github.com/shaikhshahbazz/docker-pipeline.git'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-                }
+                sh """
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                """
             }
         }
 
@@ -26,33 +20,34 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh """
+                        echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                    """
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
-                }
+                sh """
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                """
             }
         }
     }
 
     post {
         always {
-            sh 'docker logout'
+            sh 'docker logout || true'
         }
         success {
-            echo 'Syed’s Docker image built and pushed successfully 🎉'
+            echo 'Docker image built and pushed successfully'
         }
         failure {
-            echo 'Pipeline failed ❌'
+            echo 'Pipeline failed'
         }
     }
 }
-
